@@ -179,3 +179,10 @@ cython_debug/
 #  refer to https://docs.cursor.com/context/ignore-files
 .cursorignore
 .cursorindexingignore
+
+# Local MovieLens downloads
+data/ml-*/
+*.zip
+
+# Local verification scratch space
+.tmp_pip/
