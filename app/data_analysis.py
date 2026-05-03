@@ -483,7 +483,7 @@ class DataAnalysisRenderer:
             title="Top Genres by Catalog Count",
             labels={"movies": "Movies", "genre": "Genre"},
         )
-        fig.update_layout(yaxis={"categoryorder": "total ascending"})
+        self.format_horizontal_bar_chart(fig, len(genre_frame.head(20)))
         st.plotly_chart(fig, use_container_width=True)
 
         genre_movies = movies[[self.config.item_column, self.config.genres_column]].copy()
@@ -513,6 +513,9 @@ class DataAnalysisRenderer:
                 title="Top Genres by Rating Volume",
                 labels={"ratings": "Ratings", "genre": "Genre"},
             )
+            self.format_horizontal_bar_chart(
+                fig, len(genre_stats.sort_values("ratings").tail(20))
+            )
             st.plotly_chart(fig, use_container_width=True)
         with right:
             fig = px.scatter(
@@ -531,3 +534,11 @@ class DataAnalysisRenderer:
             )
             fig.update_yaxes(range=[self.config.rating_min, self.config.rating_max])
             st.plotly_chart(fig, use_container_width=True)
+
+    @staticmethod
+    def format_horizontal_bar_chart(fig, row_count: int) -> None:
+        fig.update_layout(
+            height=max(460, 30 * row_count + 120),
+            margin={"l": 120, "r": 24, "t": 80, "b": 48},
+            yaxis={"automargin": True, "categoryorder": "total ascending"},
+        )
