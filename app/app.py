@@ -144,6 +144,7 @@ class DashboardRenderer:
                 poster_url_by_movie_id=lambda movie_id: self.poster_url_for_movie(
                     int(movie_id), link_lookup
                 ),
+                tags=reference.tags,
             )
         with methodology_tab:
             self.training_methodology_renderer.render()

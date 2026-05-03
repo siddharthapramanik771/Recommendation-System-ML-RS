@@ -210,7 +210,7 @@ The Streamlit app includes:
 - movie-to-movie suggestions from learned item factors, community tags, and IMDb/TMDB links
 - optional TMDB poster thumbnails for selected movies and suggestion rows
 - sparse matrix density and catalog statistics
-- rating distribution, rating timeline, top movies, and genre analysis
+- rating distributions, time trends, user activity, catalog quality, genre, and tag analysis
 - saved precision@K methodology and metrics
 - model and metrics downloads
 
