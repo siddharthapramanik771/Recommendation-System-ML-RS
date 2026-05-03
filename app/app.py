@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from html import escape
 from pathlib import Path
 
 import pandas as pd
@@ -17,8 +18,12 @@ from src.preprocessing import MovieLensPreprocessor
 class ReferenceDataset:
     ratings: pd.DataFrame
     movies: pd.DataFrame
+    links: pd.DataFrame
+    tags: pd.DataFrame
     ratings_path: Path
     movies_path: Path
+    links_path: Path | None
+    tags_path: Path | None
 
 
 class ReferenceDataService:
@@ -39,7 +44,36 @@ class ReferenceDataService:
         ratings = ratings[
             ratings[self.config.item_column].isin(movies[self.config.item_column])
         ].reset_index(drop=True)
-        return ReferenceDataset(ratings, movies, ratings_path, movies_path)
+        links_path = movies_path.with_name("links.csv")
+        tags_path = movies_path.with_name("tags.csv")
+        links = self._load_optional_links(links_path)
+        tags = self._load_optional_tags(tags_path)
+        return ReferenceDataset(
+            ratings=ratings,
+            movies=movies,
+            links=links,
+            tags=tags,
+            ratings_path=ratings_path,
+            movies_path=movies_path,
+            links_path=links_path if links_path.exists() else None,
+            tags_path=tags_path if tags_path.exists() else None,
+        )
+
+    def _load_optional_links(self, links_path: Path) -> pd.DataFrame:
+        if not links_path.exists():
+            return pd.DataFrame()
+        try:
+            return self.preprocessor.clean_links(self.config.load_links(links_path))
+        except (OSError, ValueError, pd.errors.ParserError):
+            return pd.DataFrame()
+
+    def _load_optional_tags(self, tags_path: Path) -> pd.DataFrame:
+        if not tags_path.exists():
+            return pd.DataFrame()
+        try:
+            return self.preprocessor.clean_tags(self.config.load_tags(tags_path))
+        except (OSError, ValueError, pd.errors.ParserError):
+            return pd.DataFrame()
 
 
 class DashboardRenderer:
@@ -120,6 +154,10 @@ class DashboardRenderer:
             if reference is not None:
                 st.caption(f"Ratings: `{reference.ratings_path.as_posix()}`")
                 st.caption(f"Movies: `{reference.movies_path.as_posix()}`")
+                if reference.links_path is not None:
+                    st.caption(f"Links: `{reference.links_path.as_posix()}`")
+                if reference.tags_path is not None:
+                    st.caption(f"Tags: `{reference.tags_path.as_posix()}`")
             st.markdown("### Model Artifact")
             if not self.config.model_path.exists():
                 st.info("Train the model to enable recommendations.")
@@ -254,10 +292,23 @@ class DashboardRenderer:
             st.error("The model artifact does not contain trained movies.")
             return
 
+        tag_lookup = self.movie_tag_lookup(reference.tags)
+        link_lookup = self.movie_link_lookup(reference.links)
+        movie_label_by_id = dict(
+            zip(
+                movie_options[self.config.item_column].astype(int),
+                movie_options[self.config.title_column].astype(str),
+                strict=False,
+            )
+        )
+
         controls = st.columns([3, 1])
-        selected_title = controls[0].selectbox(
+        selected_movie_id = controls[0].selectbox(
             "Movie",
-            movie_options[self.config.title_column].tolist(),
+            movie_options[self.config.item_column].astype(int).tolist(),
+            format_func=lambda movie_id: movie_label_by_id.get(
+                int(movie_id), f"Movie {movie_id}"
+            ),
             key="movie_suggestion_movie_title",
         )
         k = controls[1].slider(
@@ -270,34 +321,187 @@ class DashboardRenderer:
         )
 
         selected_movie = movie_options[
-            movie_options[self.config.title_column] == selected_title
+            movie_options[self.config.item_column] == int(selected_movie_id)
         ].iloc[0]
         st.caption(str(selected_movie[self.config.genres_column]))
+        self.render_movie_context(
+            movie_id=int(selected_movie_id),
+            tag_lookup=tag_lookup,
+            link_lookup=link_lookup,
+        )
 
+        candidate_count = max(int(k) * 5, 40)
         similar = self.recommendation_service.similar_movies(
-            int(selected_movie[self.config.item_column]), k=int(k)
+            int(selected_movie_id), k=candidate_count
         )
         if not similar:
             st.info("Similar movies are unavailable for this title.")
             return
 
-        similar_frame = pd.DataFrame(
-            [recommendation.to_dict() for recommendation in similar]
-        ).rename(columns={"predicted_rating": "similarity_score"})
+        similar_frame = self.enriched_similar_movie_frame(
+            similar=similar,
+            source_movie_id=int(selected_movie_id),
+            tag_lookup=tag_lookup,
+            link_lookup=link_lookup,
+        ).head(int(k))
+        similar_frame["rank"] = range(1, len(similar_frame) + 1)
+
+        display_columns = [
+            "rank",
+            "title",
+            "genres",
+            "hybrid_score",
+            "similarity_score",
+            "matching_tags",
+            "community_tags",
+            "mean_rating",
+            "rating_count",
+        ]
+        if "imdb" in similar_frame and similar_frame["imdb"].notna().any():
+            display_columns.append("imdb")
+        if "tmdb" in similar_frame and similar_frame["tmdb"].notna().any():
+            display_columns.append("tmdb")
+
         st.dataframe(
-            similar_frame[
-                [
-                    "rank",
-                    "title",
-                    "genres",
-                    "similarity_score",
-                    "mean_rating",
-                    "rating_count",
-                ]
-            ],
+            similar_frame[display_columns],
+            column_config={
+                "hybrid_score": st.column_config.NumberColumn(
+                    "hybrid_score", format="%.3f"
+                ),
+                "similarity_score": st.column_config.NumberColumn(
+                    "similarity_score", format="%.3f"
+                ),
+                "imdb": st.column_config.LinkColumn("IMDb", display_text="IMDb"),
+                "tmdb": st.column_config.LinkColumn("TMDB", display_text="TMDB"),
+            },
             hide_index=True,
             use_container_width=True,
         )
+
+    def render_movie_context(
+        self,
+        movie_id: int,
+        tag_lookup: dict[int, list[str]],
+        link_lookup: dict[int, dict[str, str]],
+    ) -> None:
+        metadata_columns = st.columns([3, 1])
+        with metadata_columns[0]:
+            self.render_tag_chips("Community tags", tag_lookup.get(int(movie_id), []))
+        with metadata_columns[1]:
+            self.render_external_links(link_lookup.get(int(movie_id), {}))
+
+    @staticmethod
+    def render_tag_chips(label: str, tags: list[str]) -> None:
+        if not tags:
+            st.caption(f"{label}: none available")
+            return
+        chips = "".join(
+            f"<span class=\"tag-chip\">{escape(tag)}</span>" for tag in tags[:8]
+        )
+        st.markdown(
+            f"<div class=\"tag-row\"><strong>{escape(label)}</strong>{chips}</div>",
+            unsafe_allow_html=True,
+        )
+
+    @staticmethod
+    def render_external_links(links: dict[str, str]) -> None:
+        if not links:
+            return
+        buttons = st.columns(2)
+        if "imdb" in links:
+            buttons[0].link_button("IMDb", links["imdb"], width="stretch")
+        if "tmdb" in links:
+            buttons[1].link_button("TMDB", links["tmdb"], width="stretch")
+
+    def enriched_similar_movie_frame(
+        self,
+        similar: list,
+        source_movie_id: int,
+        tag_lookup: dict[int, list[str]],
+        link_lookup: dict[int, dict[str, str]],
+    ) -> pd.DataFrame:
+        source_tag_set = self.normalized_tag_set(tag_lookup.get(source_movie_id, []))
+        rows = []
+        for recommendation in similar:
+            row = recommendation.to_dict()
+            movie_id = int(row["movie_id"])
+            similarity_score = float(row.pop("predicted_rating"))
+            candidate_tags = tag_lookup.get(movie_id, [])
+            candidate_tag_set = self.normalized_tag_set(candidate_tags)
+            matched_tag_keys = source_tag_set & candidate_tag_set
+            matching_tags = [
+                tag for tag in candidate_tags if tag.casefold() in matched_tag_keys
+            ][:5]
+            tag_match = (
+                len(matched_tag_keys) / len(source_tag_set) if source_tag_set else 0.0
+            )
+            normalized_similarity = (similarity_score + 1.0) / 2.0
+            hybrid_score = (
+                0.85 * normalized_similarity + 0.15 * tag_match
+                if source_tag_set
+                else normalized_similarity
+            )
+            links = link_lookup.get(movie_id, {})
+            rows.append(
+                {
+                    **row,
+                    "hybrid_score": round(float(hybrid_score), 3),
+                    "similarity_score": round(similarity_score, 3),
+                    "tag_match": round(float(tag_match), 3),
+                    "matching_tags": self.join_tags(matching_tags),
+                    "community_tags": self.join_tags(candidate_tags[:5]),
+                    "imdb": links.get("imdb"),
+                    "tmdb": links.get("tmdb"),
+                }
+            )
+
+        frame = pd.DataFrame(rows)
+        if frame.empty:
+            return frame
+        return frame.sort_values(
+            ["hybrid_score", "similarity_score"], ascending=[False, False]
+        ).reset_index(drop=True)
+
+    def movie_tag_lookup(self, tags: pd.DataFrame) -> dict[int, list[str]]:
+        if tags.empty or self.config.tag_column not in tags.columns:
+            return {}
+
+        lookup: dict[int, list[str]] = {}
+        for movie_id, group in tags.groupby(self.config.item_column):
+            tag_counts = (
+                group[self.config.tag_column]
+                .astype(str)
+                .str.strip()
+                .str.casefold()
+                .value_counts()
+            )
+            lookup[int(movie_id)] = tag_counts.index[:8].tolist()
+        return lookup
+
+    def movie_link_lookup(self, links: pd.DataFrame) -> dict[int, dict[str, str]]:
+        if links.empty:
+            return {}
+
+        lookup: dict[int, dict[str, str]] = {}
+        for _, row in links.iterrows():
+            movie_links: dict[str, str] = {}
+            imdb_id = row.get(self.config.imdb_column)
+            if pd.notna(imdb_id):
+                movie_links["imdb"] = f"https://www.imdb.com/title/tt{imdb_id}/"
+            tmdb_id = row.get(self.config.tmdb_column)
+            if pd.notna(tmdb_id):
+                movie_links["tmdb"] = f"https://www.themoviedb.org/movie/{int(tmdb_id)}"
+            if movie_links:
+                lookup[int(row[self.config.item_column])] = movie_links
+        return lookup
+
+    @staticmethod
+    def normalized_tag_set(tags: list[str]) -> set[str]:
+        return {tag.casefold() for tag in tags if tag.strip()}
+
+    @staticmethod
+    def join_tags(tags: list[str]) -> str:
+        return ", ".join(dict.fromkeys(tag for tag in tags if tag))
 
     def render_user_history(self, reference: ReferenceDataset, user_id: int) -> None:
         history = reference.ratings[
@@ -322,6 +526,7 @@ class DashboardRenderer:
             hide_index=True,
             use_container_width=True,
         )
+
 
 def main() -> None:
     DashboardRenderer().render()

@@ -45,6 +45,11 @@ Required columns:
 - `ratings.csv`: `userId`, `movieId`, `rating`, `timestamp`
 - `movies.csv`: `movieId`, `title`, `genres`
 
+Optional app enrichment:
+
+- `links.csv`: `movieId`, `imdbId`, `tmdbId` for IMDb/TMDB links
+- `tags.csv`: `userId`, `movieId`, `tag`, `timestamp` for community tag context
+
 The app and trainer fall back to `data/sample/` when the real MovieLens files are
 not present. The sample is only for smoke testing; use the GroupLens MovieLens
 dataset for meaningful portfolio metrics.
@@ -186,7 +191,7 @@ The Streamlit app includes:
 - user-based movie recommendations
 - top-K controls
 - user's highest-rated history
-- similar-movie lookup from learned item factors
+- movie-to-movie suggestions from learned item factors, community tags, and IMDb/TMDB links
 - sparse matrix density and catalog statistics
 - rating distribution, rating timeline, top movies, and genre analysis
 - saved precision@K methodology and metrics
@@ -209,4 +214,3 @@ http://localhost:8501
 This is a portfolio and learning project. Recommendations are generated from the
 available MovieLens-style interactions and are not a production personalization
 system by default.
-

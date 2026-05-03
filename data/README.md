@@ -14,7 +14,11 @@ Required columns:
 - `ratings.csv`: `userId`, `movieId`, `rating`, `timestamp`
 - `movies.csv`: `movieId`, `title`, `genres`
 
+Optional enrichment files:
+
+- `links.csv`: `movieId`, `imdbId`, `tmdbId`
+- `tags.csv`: `userId`, `movieId`, `tag`, `timestamp`
+
 The repository includes a tiny `data/sample/` dataset so the pipeline and app can
 be smoke-tested without downloading anything. For portfolio metrics, use the real
 MovieLens dataset.
-

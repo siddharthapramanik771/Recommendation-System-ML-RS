@@ -11,8 +11,12 @@ class RuntimeConfig:
     project_root: Path
     ratings_path: Path
     movies_path: Path
+    links_path: Path
+    tags_path: Path
     sample_ratings_path: Path
     sample_movies_path: Path
+    sample_links_path: Path
+    sample_tags_path: Path
     model_path: Path
     metrics_path: Path
     user_column: str = "userId"
@@ -21,6 +25,9 @@ class RuntimeConfig:
     timestamp_column: str = "timestamp"
     title_column: str = "title"
     genres_column: str = "genres"
+    imdb_column: str = "imdbId"
+    tmdb_column: str = "tmdbId"
+    tag_column: str = "tag"
     relevance_threshold: float = 4.0
     rating_min: float = 0.5
     rating_max: float = 5.0
@@ -32,8 +39,12 @@ class RuntimeConfig:
             project_root=root,
             ratings_path=root / "data" / "ml-latest-small" / "ratings.csv",
             movies_path=root / "data" / "ml-latest-small" / "movies.csv",
+            links_path=root / "data" / "ml-latest-small" / "links.csv",
+            tags_path=root / "data" / "ml-latest-small" / "tags.csv",
             sample_ratings_path=root / "data" / "sample" / "ratings.csv",
             sample_movies_path=root / "data" / "sample" / "movies.csv",
+            sample_links_path=root / "data" / "sample" / "links.csv",
+            sample_tags_path=root / "data" / "sample" / "tags.csv",
             model_path=root / "models" / "model.joblib",
             metrics_path=root / "models" / "training_metrics.json",
         )
@@ -62,9 +73,16 @@ class RuntimeConfig:
         movies_path = Path(path) if path else self.resolve_dataset_paths()[1]
         return pd.read_csv(movies_path)
 
+    def load_links(self, path: Path | str | None = None) -> pd.DataFrame:
+        links_path = Path(path) if path else self.links_path
+        return pd.read_csv(links_path, dtype={self.imdb_column: "string"})
+
+    def load_tags(self, path: Path | str | None = None) -> pd.DataFrame:
+        tags_path = Path(path) if path else self.tags_path
+        return pd.read_csv(tags_path)
+
     def ensure_runtime_dirs(self) -> None:
         self.model_path.parent.mkdir(parents=True, exist_ok=True)
 
 
 RUNTIME_CONFIG = RuntimeConfig.from_project_root()
-

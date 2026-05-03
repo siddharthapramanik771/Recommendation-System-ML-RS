@@ -58,6 +58,30 @@ def apply_page_styles() -> None:
         color: rgba(49, 51, 63, 0.62);
     }
 
+    .tag-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.4rem;
+        margin: 0.25rem 0 0.9rem;
+    }
+
+    .tag-row strong {
+        color: rgba(49, 51, 63, 0.72);
+        font-size: 0.85rem;
+        margin-right: 0.1rem;
+    }
+
+    .tag-chip {
+        border: 1px solid rgba(49, 51, 63, 0.16);
+        border-radius: 8px;
+        padding: 0.2rem 0.45rem;
+        background: rgba(255, 255, 255, 0.72);
+        color: rgba(49, 51, 63, 0.86);
+        font-size: 0.82rem;
+        line-height: 1.2;
+    }
+
     @media (max-width: 900px) {
         .status-strip {
             grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -76,4 +100,3 @@ def apply_page_styles() -> None:
 """,
         unsafe_allow_html=True,
     )
-

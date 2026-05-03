@@ -116,6 +116,73 @@ class MovieLensPreprocessor:
             drop=True
         )
 
+    def clean_links(self, links: pd.DataFrame) -> pd.DataFrame:
+        df = links.copy()
+        df.columns = df.columns.str.strip()
+        self._require_columns(df, {self.config.item_column}, "links")
+
+        keep_columns = [self.config.item_column]
+        for column in (self.config.imdb_column, self.config.tmdb_column):
+            if column in df.columns:
+                keep_columns.append(column)
+        df = df[keep_columns].copy()
+
+        df[self.config.item_column] = pd.to_numeric(
+            df[self.config.item_column], errors="coerce"
+        )
+        df = df.dropna(subset=[self.config.item_column])
+        df[self.config.item_column] = df[self.config.item_column].astype(int)
+
+        if self.config.imdb_column in df.columns:
+            df[self.config.imdb_column] = df[self.config.imdb_column].map(
+                _format_imdb_id
+            )
+        if self.config.tmdb_column in df.columns:
+            df[self.config.tmdb_column] = pd.to_numeric(
+                df[self.config.tmdb_column], errors="coerce"
+            ).astype("Int64")
+
+        return df.drop_duplicates(subset=[self.config.item_column]).reset_index(
+            drop=True
+        )
+
+    def clean_tags(self, tags: pd.DataFrame) -> pd.DataFrame:
+        df = tags.copy()
+        df.columns = df.columns.str.strip()
+        self._require_columns(
+            df,
+            {self.config.item_column, self.config.tag_column},
+            "tags",
+        )
+
+        keep_columns = [self.config.item_column, self.config.tag_column]
+        if self.config.user_column in df.columns:
+            keep_columns.insert(0, self.config.user_column)
+        if self.config.timestamp_column in df.columns:
+            keep_columns.append(self.config.timestamp_column)
+        df = df[keep_columns].copy()
+
+        df[self.config.item_column] = pd.to_numeric(
+            df[self.config.item_column], errors="coerce"
+        )
+        df[self.config.tag_column] = (
+            df[self.config.tag_column].fillna("").astype(str).str.strip()
+        )
+        df = df.dropna(subset=[self.config.item_column])
+        df = df[df[self.config.tag_column] != ""]
+        df[self.config.item_column] = df[self.config.item_column].astype(int)
+
+        if self.config.user_column in df.columns:
+            df[self.config.user_column] = pd.to_numeric(
+                df[self.config.user_column], errors="coerce"
+            ).astype("Int64")
+        if self.config.timestamp_column in df.columns:
+            df[self.config.timestamp_column] = pd.to_numeric(
+                df[self.config.timestamp_column], errors="coerce"
+            ).fillna(0)
+
+        return df.reset_index(drop=True)
+
     def filter_interactions(
         self, ratings: pd.DataFrame, settings: TrainingSettings
     ) -> pd.DataFrame:
@@ -200,3 +267,13 @@ class MovieLensPreprocessor:
 def display_name(column_name: str) -> str:
     return column_name.replace("_", " ").replace("Id", " ID").title()
 
+
+def _format_imdb_id(value: object) -> str | None:
+    if pd.isna(value):
+        return None
+    imdb_id = str(value).strip()
+    if not imdb_id:
+        return None
+    if imdb_id.endswith(".0"):
+        imdb_id = imdb_id[:-2]
+    return imdb_id.zfill(7)
