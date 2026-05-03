@@ -181,7 +181,7 @@ cython_debug/
 .cursorindexingignore
 
 # Local MovieLens downloads
-data/ml-*/
+# data/ml-*/
 *.zip
 
 # Local verification scratch space
