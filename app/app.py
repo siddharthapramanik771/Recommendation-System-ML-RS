@@ -193,9 +193,24 @@ class DashboardRenderer:
             return
 
         controls = st.columns([2, 1, 1])
-        user_id = controls[0].selectbox("User ID", known_users)
-        k = controls[1].slider("Top K", min_value=5, max_value=20, value=10, step=1)
-        show_history = controls[2].toggle("Show history", value=True)
+        user_id = controls[0].selectbox(
+            "User ID",
+            known_users,
+            key="user_recommendation_user_id",
+        )
+        k = controls[1].slider(
+            "Top K",
+            min_value=5,
+            max_value=20,
+            value=10,
+            step=1,
+            key="user_recommendation_top_k",
+        )
+        show_history = controls[2].toggle(
+            "Show history",
+            value=True,
+            key="user_recommendation_show_history",
+        )
 
         result = self.recommendation_service.recommend_for_user(int(user_id), k=int(k))
         recommendation_frame = result.to_frame()
@@ -243,8 +258,16 @@ class DashboardRenderer:
         selected_title = controls[0].selectbox(
             "Movie",
             movie_options[self.config.title_column].tolist(),
+            key="movie_suggestion_movie_title",
         )
-        k = controls[1].slider("Top K", min_value=5, max_value=20, value=10, step=1)
+        k = controls[1].slider(
+            "Top K",
+            min_value=5,
+            max_value=20,
+            value=10,
+            step=1,
+            key="movie_suggestion_top_k",
+        )
 
         selected_movie = movie_options[
             movie_options[self.config.title_column] == selected_title
