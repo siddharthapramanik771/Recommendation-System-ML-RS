@@ -80,9 +80,16 @@ class DashboardRenderer:
             st.stop()
 
         self.render_status_strip(reference)
-        recommendation_tab, analysis_tab, methodology_tab = st.tabs(
-            ["Recommend Movies", "Data Analysis", "Training Methodology"]
+        movie_tab, recommendation_tab, analysis_tab, methodology_tab = st.tabs(
+            [
+                "Movie Suggestions",
+                "User Recommendations",
+                "Data Analysis",
+                "Training Methodology",
+            ]
         )
+        with movie_tab:
+            self.render_movie_suggestion_tab(reference)
         with recommendation_tab:
             self.render_recommendation_tab(reference)
         with analysis_tab:
@@ -210,8 +217,64 @@ class DashboardRenderer:
         if show_history:
             self.render_user_history(reference, int(user_id))
 
-        with st.expander("Find Similar Movies"):
-            self.render_similar_movies(reference)
+    def render_movie_suggestion_tab(self, reference: ReferenceDataset) -> None:
+        st.subheader("Get Suggestions from a Movie")
+        if not self.config.model_path.exists():
+            st.warning(
+                "Prediction requires a trained artifact. Run `python -m src.train` "
+                "from the project root, then refresh the dashboard."
+            )
+            return
+
+        artifact = self.recommendation_service.load_artifact()
+        known_movie_ids = set(artifact.recommender.known_movie_ids)
+        movie_options = (
+            reference.movies[
+                reference.movies[self.config.item_column].astype(int).isin(known_movie_ids)
+            ]
+            .sort_values(self.config.title_column)
+            .reset_index(drop=True)
+        )
+        if movie_options.empty:
+            st.error("The model artifact does not contain trained movies.")
+            return
+
+        controls = st.columns([3, 1])
+        selected_title = controls[0].selectbox(
+            "Movie",
+            movie_options[self.config.title_column].tolist(),
+        )
+        k = controls[1].slider("Top K", min_value=5, max_value=20, value=10, step=1)
+
+        selected_movie = movie_options[
+            movie_options[self.config.title_column] == selected_title
+        ].iloc[0]
+        st.caption(str(selected_movie[self.config.genres_column]))
+
+        similar = self.recommendation_service.similar_movies(
+            int(selected_movie[self.config.item_column]), k=int(k)
+        )
+        if not similar:
+            st.info("Similar movies are unavailable for this title.")
+            return
+
+        similar_frame = pd.DataFrame(
+            [recommendation.to_dict() for recommendation in similar]
+        ).rename(columns={"predicted_rating": "similarity_score"})
+        st.dataframe(
+            similar_frame[
+                [
+                    "rank",
+                    "title",
+                    "genres",
+                    "similarity_score",
+                    "mean_rating",
+                    "rating_count",
+                ]
+            ],
+            hide_index=True,
+            use_container_width=True,
+        )
 
     def render_user_history(self, reference: ReferenceDataset, user_id: int) -> None:
         history = reference.ratings[
@@ -236,31 +299,6 @@ class DashboardRenderer:
             hide_index=True,
             use_container_width=True,
         )
-
-    def render_similar_movies(self, reference: ReferenceDataset) -> None:
-        movie_options = reference.movies.sort_values(self.config.title_column)
-        title_to_id = dict(
-            zip(
-                movie_options[self.config.title_column],
-                movie_options[self.config.item_column],
-                strict=False,
-            )
-        )
-        selected_title = st.selectbox("Movie", list(title_to_id.keys()))
-        similar = self.recommendation_service.similar_movies(
-            int(title_to_id[selected_title]), k=10
-        )
-        if not similar:
-            st.info("Similar movies are unavailable for this title.")
-            return
-        st.dataframe(
-            pd.DataFrame([recommendation.to_dict() for recommendation in similar])[
-                ["rank", "title", "genres", "predicted_rating", "rating_count"]
-            ],
-            hide_index=True,
-            use_container_width=True,
-        )
-
 
 def main() -> None:
     DashboardRenderer().render()
