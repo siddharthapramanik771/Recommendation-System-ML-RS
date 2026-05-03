@@ -1,6 +1,11 @@
 from dataclasses import dataclass
 from html import escape
+import json
+import os
 from pathlib import Path
+from urllib.error import HTTPError, URLError
+from urllib.parse import urlencode
+from urllib.request import Request, urlopen
 
 import pandas as pd
 import streamlit as st
@@ -12,6 +17,10 @@ from src.config import RUNTIME_CONFIG, RuntimeConfig
 from src.model_bundle import ModelArtifactRepository
 from src.predict import MovieRecommendationService
 from src.preprocessing import MovieLensPreprocessor
+
+
+TMDB_API_URL = "https://api.themoviedb.org/3/movie/{tmdb_id}"
+TMDB_IMAGE_BASE_URL = "https://image.tmdb.org/t/p/w342"
 
 
 @dataclass(frozen=True)
@@ -345,9 +354,11 @@ class DashboardRenderer:
             link_lookup=link_lookup,
         ).head(int(k))
         similar_frame["rank"] = range(1, len(similar_frame) + 1)
+        similar_frame["poster"] = similar_frame["movie_id"].map(
+            lambda movie_id: self.poster_url_for_movie(int(movie_id), link_lookup)
+        )
 
         display_columns = [
-            "rank",
             "title",
             "genres",
             "hybrid_score",
@@ -357,6 +368,9 @@ class DashboardRenderer:
             "mean_rating",
             "rating_count",
         ]
+        if similar_frame["poster"].notna().any():
+            display_columns.insert(0, "poster")
+        display_columns.insert(1 if "poster" in display_columns else 0, "rank")
         if "imdb" in similar_frame and similar_frame["imdb"].notna().any():
             display_columns.append("imdb")
         if "tmdb" in similar_frame and similar_frame["tmdb"].notna().any():
@@ -371,6 +385,7 @@ class DashboardRenderer:
                 "similarity_score": st.column_config.NumberColumn(
                     "similarity_score", format="%.3f"
                 ),
+                "poster": st.column_config.ImageColumn("Poster", width="small"),
                 "imdb": st.column_config.LinkColumn("IMDb", display_text="IMDb"),
                 "tmdb": st.column_config.LinkColumn("TMDB", display_text="TMDB"),
             },
@@ -384,10 +399,25 @@ class DashboardRenderer:
         tag_lookup: dict[int, list[str]],
         link_lookup: dict[int, dict[str, str]],
     ) -> None:
-        metadata_columns = st.columns([3, 1])
-        with metadata_columns[0]:
+        poster_url = self.poster_url_for_movie(movie_id, link_lookup)
+        if poster_url:
+            metadata_columns = st.columns([1, 3, 1])
+            with metadata_columns[0]:
+                st.image(poster_url, width=120)
+            tag_column = metadata_columns[1]
+            link_column = metadata_columns[2]
+        else:
+            metadata_columns = st.columns([3, 1])
+            tag_column = metadata_columns[0]
+            link_column = metadata_columns[1]
+
+        with tag_column:
             self.render_tag_chips("Community tags", tag_lookup.get(int(movie_id), []))
-        with metadata_columns[1]:
+            if not tmdb_credentials_available():
+                st.caption(
+                    "Add TMDB_API_KEY or TMDB_READ_ACCESS_TOKEN to show posters."
+                )
+        with link_column:
             self.render_external_links(link_lookup.get(int(movie_id), {}))
 
     @staticmethod
@@ -496,6 +526,17 @@ class DashboardRenderer:
         return lookup
 
     @staticmethod
+    def poster_url_for_movie(
+        movie_id: int, link_lookup: dict[int, dict[str, str]]
+    ) -> str | None:
+        links = link_lookup.get(int(movie_id), {})
+        tmdb_url = links.get("tmdb")
+        if not tmdb_url:
+            return None
+        tmdb_id = tmdb_url.rstrip("/").split("/")[-1]
+        return fetch_tmdb_poster_url(tmdb_id)
+
+    @staticmethod
     def normalized_tag_set(tags: list[str]) -> set[str]:
         return {tag.casefold() for tag in tags if tag.strip()}
 
@@ -530,3 +571,54 @@ class DashboardRenderer:
 
 def main() -> None:
     DashboardRenderer().render()
+
+
+@st.cache_data(show_spinner=False, ttl=60 * 60 * 24)
+def fetch_tmdb_poster_url(tmdb_id: str) -> str | None:
+    token = config_value("TMDB_READ_ACCESS_TOKEN") or config_value(
+        "TMDB_BEARER_TOKEN"
+    )
+    api_key = config_value("TMDB_API_KEY")
+    if not token and not api_key:
+        return None
+
+    url = TMDB_API_URL.format(tmdb_id=tmdb_id)
+    headers = {
+        "Accept": "application/json",
+        "User-Agent": "MovieLens-Recommender/1.0",
+    }
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    elif api_key:
+        url = f"{url}?{urlencode({'api_key': api_key})}"
+
+    request = Request(url, headers=headers)
+    try:
+        with urlopen(request, timeout=5) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+    except (HTTPError, URLError, TimeoutError, json.JSONDecodeError, OSError):
+        return None
+
+    poster_path = payload.get("poster_path")
+    if not poster_path:
+        return None
+    return f"{TMDB_IMAGE_BASE_URL}{poster_path}"
+
+
+def tmdb_credentials_available() -> bool:
+    return bool(
+        config_value("TMDB_API_KEY")
+        or config_value("TMDB_READ_ACCESS_TOKEN")
+        or config_value("TMDB_BEARER_TOKEN")
+    )
+
+
+def config_value(name: str) -> str | None:
+    value = os.environ.get(name)
+    if value:
+        return value
+    try:
+        secret_value = st.secrets.get(name)
+    except (AttributeError, FileNotFoundError, KeyError, RuntimeError):
+        return None
+    return str(secret_value) if secret_value else None

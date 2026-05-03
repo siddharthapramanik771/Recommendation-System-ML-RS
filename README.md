@@ -50,6 +50,12 @@ Optional app enrichment:
 - `links.csv`: `movieId`, `imdbId`, `tmdbId` for IMDb/TMDB links
 - `tags.csv`: `userId`, `movieId`, `tag`, `timestamp` for community tag context
 
+Movie posters are loaded from TMDB when one of these values is available as an
+environment variable or Streamlit secret:
+
+- `TMDB_READ_ACCESS_TOKEN` or `TMDB_BEARER_TOKEN`
+- `TMDB_API_KEY`
+
 The app and trainer fall back to `data/sample/` when the real MovieLens files are
 not present. The sample is only for smoke testing; use the GroupLens MovieLens
 dataset for meaningful portfolio metrics.
@@ -192,6 +198,7 @@ The Streamlit app includes:
 - top-K controls
 - user's highest-rated history
 - movie-to-movie suggestions from learned item factors, community tags, and IMDb/TMDB links
+- optional TMDB poster thumbnails for selected movies and suggestion rows
 - sparse matrix density and catalog statistics
 - rating distribution, rating timeline, top movies, and genre analysis
 - saved precision@K methodology and metrics
