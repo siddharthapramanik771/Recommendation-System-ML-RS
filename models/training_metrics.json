@@ -1,7 +1,7 @@
 {
   "model_name": "Biased Matrix Factorization",
-  "ratings_path": "C:\\Users\\SIDDHARTA PRAMANIK\\PycharmProjects\\Recommendation-System-ML-RS\\data\\sample\\ratings.csv",
-  "movies_path": "C:\\Users\\SIDDHARTA PRAMANIK\\PycharmProjects\\Recommendation-System-ML-RS\\data\\sample\\movies.csv",
+  "ratings_path": "C:\\Users\\SIDDHARTA PRAMANIK\\PycharmProjects\\Recommendation-System-ML-RS\\data\\ml-latest-small\\ratings.csv",
+  "movies_path": "C:\\Users\\SIDDHARTA PRAMANIK\\PycharmProjects\\Recommendation-System-ML-RS\\data\\ml-latest-small\\movies.csv",
   "artifact_path": "C:\\Users\\SIDDHARTA PRAMANIK\\PycharmProjects\\Recommendation-System-ML-RS\\models\\model.joblib",
   "metrics_path": "C:\\Users\\SIDDHARTA PRAMANIK\\PycharmProjects\\Recommendation-System-ML-RS\\models\\training_metrics.json",
   "settings": {
@@ -20,46 +20,46 @@
     "recommendation_count": 10
   },
   "catalog": {
-    "ratings": 70,
-    "users": 10,
-    "rated_movies": 18,
-    "catalog_movies": 18,
-    "matrix_density": 0.3888888888888889,
-    "matrix_sparsity": 0.6111111111111112,
-    "mean_rating": 4.071428571428571
+    "ratings": 100836,
+    "users": 610,
+    "rated_movies": 9724,
+    "catalog_movies": 9742,
+    "matrix_density": 0.016968273253211548,
+    "matrix_sparsity": 0.9830317267467884,
+    "mean_rating": 3.501556983616962
   },
   "split": {
-    "train_ratings": 60,
-    "test_ratings": 10,
+    "train_ratings": 100227,
+    "test_ratings": 609,
     "test_strategy": "leave-one-relevant-rating-out per eligible user",
     "relevance_threshold": 4.0
   },
   "ranking": {
-    "evaluated_users": 10,
+    "evaluated_users": 609,
     "precision_at_k": {
-      "5": 0.12,
-      "10": 0.09,
-      "20": 0.049999999999999996
+      "5": 0.0009852216748768474,
+      "10": 0.0006568144499178982,
+      "20": 0.0009031198686371099
     },
     "recall_at_k": {
-      "5": 0.6,
-      "10": 0.9,
-      "20": 1.0
+      "5": 0.0049261083743842365,
+      "10": 0.006568144499178982,
+      "20": 0.0180623973727422
     },
     "hit_rate_at_k": {
-      "5": 0.6,
-      "10": 0.9,
-      "20": 1.0
+      "5": 0.0049261083743842365,
+      "10": 0.006568144499178982,
+      "20": 0.0180623973727422
     },
     "ndcg_at_k": {
-      "5": 0.3379135676952785,
-      "10": 0.4351837736510518,
-      "20": 0.4622075890937838
+      "5": 0.0028930369575417324,
+      "10": 0.0034779420266846262,
+      "20": 0.006401358290761858
     },
     "catalog_coverage_at_k": {
-      "5": 0.5555555555555556,
-      "10": 0.8888888888888888,
-      "20": 1.0
+      "5": 0.0217614452884418,
+      "10": 0.033976596181482244,
+      "20": 0.052555943338123585
     }
   }
 }
