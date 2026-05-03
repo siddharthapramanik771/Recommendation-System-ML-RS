@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+import hashlib
 from html import escape
 import json
 import os
@@ -167,6 +168,7 @@ class DashboardRenderer:
                     st.caption(f"Links: `{reference.links_path.as_posix()}`")
                 if reference.tags_path is not None:
                     st.caption(f"Tags: `{reference.tags_path.as_posix()}`")
+            self.render_poster_status()
             st.markdown("### Model Artifact")
             if not self.config.model_path.exists():
                 st.info("Train the model to enable recommendations.")
@@ -191,6 +193,19 @@ class DashboardRenderer:
                     mime="application/json",
                     width="stretch",
                 )
+
+    @staticmethod
+    def render_poster_status() -> None:
+        st.markdown("### Poster Images")
+        source = tmdb_credentials_source()
+        if source:
+            st.success(f"TMDB credential detected from {source}.")
+            return
+        st.info(
+            "No TMDB credential is visible to Streamlit. GitHub repository "
+            "secrets are only available to GitHub Actions; add `TMDB_API_KEY` "
+            "or `TMDB_READ_ACCESS_TOKEN` in Streamlit Cloud secrets."
+        )
 
     def render_status_strip(self, reference: ReferenceDataset) -> None:
         stats = self.preprocessor.catalog_stats(reference.ratings, reference.movies)
@@ -534,7 +549,7 @@ class DashboardRenderer:
         if not tmdb_url:
             return None
         tmdb_id = tmdb_url.rstrip("/").split("/")[-1]
-        return fetch_tmdb_poster_url(tmdb_id)
+        return fetch_tmdb_poster_url(tmdb_id, tmdb_credentials_cache_key())
 
     @staticmethod
     def normalized_tag_set(tags: list[str]) -> set[str]:
@@ -574,7 +589,9 @@ def main() -> None:
 
 
 @st.cache_data(show_spinner=False, ttl=60 * 60 * 24)
-def fetch_tmdb_poster_url(tmdb_id: str) -> str | None:
+def fetch_tmdb_poster_url(
+    tmdb_id: str, credentials_cache_key: str | None
+) -> str | None:
     token = config_value("TMDB_READ_ACCESS_TOKEN") or config_value(
         "TMDB_BEARER_TOKEN"
     )
@@ -606,19 +623,52 @@ def fetch_tmdb_poster_url(tmdb_id: str) -> str | None:
 
 
 def tmdb_credentials_available() -> bool:
-    return bool(
-        config_value("TMDB_API_KEY")
-        or config_value("TMDB_READ_ACCESS_TOKEN")
-        or config_value("TMDB_BEARER_TOKEN")
-    )
+    return bool(tmdb_credentials_source())
+
+
+def tmdb_credentials_cache_key() -> str | None:
+    for name in (
+        "TMDB_READ_ACCESS_TOKEN",
+        "TMDB_BEARER_TOKEN",
+        "TMDB_API_KEY",
+    ):
+        value = config_value(name)
+        if value:
+            digest = hashlib.sha256(value.encode("utf-8")).hexdigest()[:12]
+            return f"{name}:{digest}"
+    return None
+
+
+def tmdb_credentials_source() -> str | None:
+    for name in (
+        "TMDB_READ_ACCESS_TOKEN",
+        "TMDB_BEARER_TOKEN",
+        "TMDB_API_KEY",
+    ):
+        source = config_value_source(name)
+        if source:
+            return f"{source} `{name}`"
+    return None
 
 
 def config_value(name: str) -> str | None:
+    value, _ = config_value_with_source(name)
+    return value
+
+
+def config_value_source(name: str) -> str | None:
+    _, source = config_value_with_source(name)
+    return source
+
+
+def config_value_with_source(name: str) -> tuple[str | None, str | None]:
     value = os.environ.get(name)
     if value:
-        return value
+        return value, "environment variable"
     try:
         secret_value = st.secrets.get(name)
     except (AttributeError, FileNotFoundError, KeyError, RuntimeError):
-        return None
-    return str(secret_value) if secret_value else None
+        return None, None
+    if secret_value:
+        return str(secret_value), "Streamlit secret"
+    return None, None

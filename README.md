@@ -56,6 +56,16 @@ environment variable or Streamlit secret:
 - `TMDB_READ_ACCESS_TOKEN` or `TMDB_BEARER_TOKEN`
 - `TMDB_API_KEY`
 
+For Streamlit Community Cloud, add the key in the app's **Settings -> Secrets**,
+for example:
+
+```toml
+TMDB_API_KEY = "your_key_here"
+```
+
+GitHub repository secrets are only exposed to GitHub Actions workflows; they are
+not automatically available to the running Streamlit app.
+
 The app and trainer fall back to `data/sample/` when the real MovieLens files are
 not present. The sample is only for smoke testing; use the GroupLens MovieLens
 dataset for meaningful portfolio metrics.
