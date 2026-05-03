@@ -137,7 +137,14 @@ class DashboardRenderer:
         with recommendation_tab:
             self.render_recommendation_tab(reference)
         with analysis_tab:
-            self.data_analysis_renderer.render(reference.ratings, reference.movies)
+            link_lookup = self.movie_link_lookup(reference.links)
+            self.data_analysis_renderer.render(
+                reference.ratings,
+                reference.movies,
+                poster_url_by_movie_id=lambda movie_id: self.poster_url_for_movie(
+                    int(movie_id), link_lookup
+                ),
+            )
         with methodology_tab:
             self.training_methodology_renderer.render()
 
@@ -275,18 +282,21 @@ class DashboardRenderer:
         )
 
         result = self.recommendation_service.recommend_for_user(int(user_id), k=int(k))
-        recommendation_frame = result.to_frame()
+        link_lookup = self.movie_link_lookup(reference.links)
+        recommendation_frame = self.with_poster_column(result.to_frame(), link_lookup)
+        display_columns = [
+            "rank",
+            "title",
+            "genres",
+            "predicted_rating",
+            "mean_rating",
+            "rating_count",
+        ]
+        if self.should_show_poster_column(recommendation_frame):
+            display_columns.insert(0, "poster")
         st.dataframe(
-            recommendation_frame[
-                [
-                    "rank",
-                    "title",
-                    "genres",
-                    "predicted_rating",
-                    "mean_rating",
-                    "rating_count",
-                ]
-            ],
+            recommendation_frame[display_columns],
+            column_config=self.movie_table_column_config(),
             hide_index=True,
             use_container_width=True,
         )
@@ -369,9 +379,7 @@ class DashboardRenderer:
             link_lookup=link_lookup,
         ).head(int(k))
         similar_frame["rank"] = range(1, len(similar_frame) + 1)
-        similar_frame["poster"] = similar_frame["movie_id"].map(
-            lambda movie_id: self.poster_url_for_movie(int(movie_id), link_lookup)
-        )
+        similar_frame = self.with_poster_column(similar_frame, link_lookup)
 
         display_columns = [
             "title",
@@ -393,20 +401,43 @@ class DashboardRenderer:
 
         st.dataframe(
             similar_frame[display_columns],
-            column_config={
-                "hybrid_score": st.column_config.NumberColumn(
-                    "hybrid_score", format="%.3f"
-                ),
-                "similarity_score": st.column_config.NumberColumn(
-                    "similarity_score", format="%.3f"
-                ),
-                "poster": st.column_config.ImageColumn("Poster", width="small"),
-                "imdb": st.column_config.LinkColumn("IMDb", display_text="IMDb"),
-                "tmdb": st.column_config.LinkColumn("TMDB", display_text="TMDB"),
-            },
+            column_config=self.movie_table_column_config(),
             hide_index=True,
             use_container_width=True,
         )
+
+    def with_poster_column(
+        self, frame: pd.DataFrame, link_lookup: dict[int, dict[str, str]]
+    ) -> pd.DataFrame:
+        if frame.empty or "movie_id" not in frame.columns:
+            return frame
+        enriched = frame.copy()
+        enriched["poster"] = enriched["movie_id"].map(
+            lambda movie_id: self.poster_url_for_movie(int(movie_id), link_lookup)
+        )
+        return enriched
+
+    @staticmethod
+    def should_show_poster_column(frame: pd.DataFrame) -> bool:
+        return "poster" in frame.columns and frame["poster"].notna().any()
+
+    @staticmethod
+    def movie_table_column_config() -> dict:
+        return {
+            "poster": st.column_config.ImageColumn("Poster", width="small"),
+            "hybrid_score": st.column_config.NumberColumn(
+                "hybrid_score", format="%.3f"
+            ),
+            "similarity_score": st.column_config.NumberColumn(
+                "similarity_score", format="%.3f"
+            ),
+            "predicted_rating": st.column_config.NumberColumn(
+                "predicted_rating", format="%.3f"
+            ),
+            "mean_rating": st.column_config.NumberColumn("mean_rating", format="%.3f"),
+            "imdb": st.column_config.LinkColumn("IMDb", display_text="IMDb"),
+            "tmdb": st.column_config.LinkColumn("TMDB", display_text="TMDB"),
+        }
 
     def render_movie_context(
         self,
@@ -570,15 +601,20 @@ class DashboardRenderer:
             [self.config.rating_column, self.config.timestamp_column],
             ascending=[False, False],
         )
+        history = history.rename(columns={self.config.item_column: "movie_id"}).head(10)
+        link_lookup = self.movie_link_lookup(reference.links)
+        history = self.with_poster_column(history, link_lookup)
+        display_columns = [
+            self.config.title_column,
+            self.config.genres_column,
+            self.config.rating_column,
+        ]
+        if self.should_show_poster_column(history):
+            display_columns.insert(0, "poster")
         st.markdown("#### Highest Rated by This User")
         st.dataframe(
-            history[
-                [
-                    self.config.title_column,
-                    self.config.genres_column,
-                    self.config.rating_column,
-                ]
-            ].head(10),
+            history[display_columns],
+            column_config=self.movie_table_column_config(),
             hide_index=True,
             use_container_width=True,
         )

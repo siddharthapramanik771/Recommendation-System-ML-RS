@@ -1,4 +1,5 @@
 from collections import Counter
+from collections.abc import Callable
 
 import pandas as pd
 import plotly.express as px
@@ -13,7 +14,12 @@ class DataAnalysisRenderer:
         self.config = config
         self.preprocessor = MovieLensPreprocessor(config)
 
-    def render(self, ratings: pd.DataFrame, movies: pd.DataFrame) -> None:
+    def render(
+        self,
+        ratings: pd.DataFrame,
+        movies: pd.DataFrame,
+        poster_url_by_movie_id: Callable[[int], str | None] | None = None,
+    ) -> None:
         st.subheader("MovieLens Data Analysis")
         stats = self.preprocessor.catalog_stats(ratings, movies)
         left, middle, right, extra = st.columns(4)
@@ -28,7 +34,7 @@ class DataAnalysisRenderer:
         with rating_tab:
             self.render_rating_distribution(ratings)
         with catalog_tab:
-            self.render_catalog_tables(ratings, movies)
+            self.render_catalog_tables(ratings, movies, poster_url_by_movie_id)
         with genre_tab:
             self.render_genre_summary(movies)
 
@@ -67,7 +73,10 @@ class DataAnalysisRenderer:
                 st.plotly_chart(fig, use_container_width=True)
 
     def render_catalog_tables(
-        self, ratings: pd.DataFrame, movies: pd.DataFrame
+        self,
+        ratings: pd.DataFrame,
+        movies: pd.DataFrame,
+        poster_url_by_movie_id: Callable[[int], str | None] | None = None,
     ) -> None:
         movie_stats = (
             ratings.groupby(self.config.item_column)[self.config.rating_column]
@@ -75,16 +84,31 @@ class DataAnalysisRenderer:
             .reset_index()
             .merge(movies, on=self.config.item_column, how="left")
             .sort_values(["rating_count", "mean_rating"], ascending=False)
+            .head(25)
         )
+        movie_stats = movie_stats.rename(columns={self.config.item_column: "movie_id"})
+        if poster_url_by_movie_id is not None:
+            movie_stats["poster"] = movie_stats["movie_id"].map(
+                lambda movie_id: poster_url_by_movie_id(int(movie_id))
+            )
+
+        display_columns = [
+            self.config.title_column,
+            self.config.genres_column,
+            "rating_count",
+            "mean_rating",
+        ]
+        if "poster" in movie_stats.columns and movie_stats["poster"].notna().any():
+            display_columns.insert(0, "poster")
+
         st.dataframe(
-            movie_stats[
-                [
-                    self.config.title_column,
-                    self.config.genres_column,
-                    "rating_count",
-                    "mean_rating",
-                ]
-            ].head(25),
+            movie_stats[display_columns],
+            column_config={
+                "poster": st.column_config.ImageColumn("Poster", width="small"),
+                "mean_rating": st.column_config.NumberColumn(
+                    "mean_rating", format="%.3f"
+                ),
+            },
             hide_index=True,
             use_container_width=True,
         )
@@ -109,4 +133,3 @@ class DataAnalysisRenderer:
         )
         fig.update_layout(yaxis={"categoryorder": "total ascending"})
         st.plotly_chart(fig, use_container_width=True)
-
