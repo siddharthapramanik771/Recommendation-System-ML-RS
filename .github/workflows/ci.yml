@@ -37,3 +37,15 @@ jobs:
           RECOMMENDER_LATENT_FACTORS: "8"
           RECOMMENDER_K_VALUES: "5,10"
         run: python -m src.train
+
+      - name: Save trained model artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: recommender-ci-model-${{ github.run_id }}
+          path: |
+            models/model.joblib
+            models/training_metrics.json
+            data/tmdb/ratings.csv
+            data/tmdb/movies.csv
+            data/tmdb/links.csv
+          retention-days: 14
