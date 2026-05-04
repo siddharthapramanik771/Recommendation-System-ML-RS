@@ -85,6 +85,8 @@ Streamlit app to fetch poster images when `links.csv` provides TMDB IDs.
 |-- data/
 |   |-- sample/                       # Tiny local smoke-test dataset
 |   `-- README.md                     # MovieLens placement note
+|-- docs/
+|   `-- CODE_FLOW.md                  # Detailed code flow and concepts
 |-- models/
 |   `-- README.md                     # Artifact output note
 |-- notebooks/
@@ -136,6 +138,10 @@ http://localhost:8501
 ## Training
 
 Training is implemented in `src/train.py`.
+
+A detailed walkthrough of the modules, data flow, model logic, evaluation,
+artifacts, dashboard runtime, poster lookup, and GitHub workflows is available
+in [`docs/CODE_FLOW.md`](docs/CODE_FLOW.md).
 
 The workflow:
 

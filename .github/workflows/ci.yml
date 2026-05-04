@@ -33,8 +33,6 @@ jobs:
         run: python -m compileall app src streamlit_app.py
 
       - name: Train on MovieLens data
-        env:
-          RECOMMENDER_TRAINING_SOURCE: csv
         run: python -m src.train
 
       - name: Save trained model artifacts

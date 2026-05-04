@@ -14,10 +14,6 @@ from src.preprocessing import MovieLensPreprocessor
 from src.training_settings import TrainingSettings
 
 
-CSV_SOURCE = "csv"
-SAMPLE_SOURCE = "sample"
-
-
 class RecommenderTrainer:
     """Offline training workflow for the MovieLens recommender."""
 
@@ -36,7 +32,6 @@ class RecommenderTrainer:
         ratings_path: Path | str | None = None,
         movies_path: Path | str | None = None,
         use_sample: bool = False,
-        data_source_summary: dict | None = None,
     ) -> dict:
         self.config.ensure_runtime_dirs()
         resolved_ratings_path, resolved_movies_path = self.config.resolve_dataset_paths(
@@ -87,7 +82,6 @@ class RecommenderTrainer:
             training_summary={
                 "ratings_path": str(resolved_ratings_path),
                 "movies_path": str(resolved_movies_path),
-                "data_source": data_source_summary or {"type": "csv"},
                 "settings": self.settings.to_dict(),
             },
             relevance_threshold=self.config.relevance_threshold,
@@ -102,7 +96,6 @@ class RecommenderTrainer:
             evaluation=evaluation,
             ratings_path=resolved_ratings_path,
             movies_path=resolved_movies_path,
-            data_source_summary=data_source_summary,
         )
         self.config.metrics_path.write_text(
             json.dumps(metrics_payload, indent=2), encoding="utf-8"
@@ -118,11 +111,9 @@ class RecommenderTrainer:
         evaluation: RankingEvaluation,
         ratings_path: Path,
         movies_path: Path,
-        data_source_summary: dict | None = None,
     ) -> dict:
         return {
             "model_name": "Biased Matrix Factorization",
-            "data_source": data_source_summary or {"type": "csv"},
             "ratings_path": str(ratings_path),
             "movies_path": str(movies_path),
             "artifact_path": str(self.config.model_path),
@@ -193,35 +184,13 @@ def resolve_training_inputs() -> tuple[
     Path | None,
     bool,
 ]:
-    source = training_data_source()
-
-    if source == SAMPLE_SOURCE:
-        return None, None, True
-
-    if source != CSV_SOURCE:
-        valid_sources = ", ".join([CSV_SOURCE, SAMPLE_SOURCE])
-        raise ValueError(
-            f"Unsupported RECOMMENDER_TRAINING_SOURCE={source!r}. "
-            f"Use one of: {valid_sources}."
-        )
-
     ratings_path = _optional_path("RECOMMENDER_RATINGS_PATH", "RATINGS_PATH")
     movies_path = _optional_path("RECOMMENDER_MOVIES_PATH", "MOVIES_PATH")
     if bool(ratings_path) != bool(movies_path):
         raise ValueError(
             "Provide both RECOMMENDER_RATINGS_PATH and RECOMMENDER_MOVIES_PATH."
         )
-    return ratings_path, movies_path, False
-
-
-def training_data_source() -> str:
-    source = _first_non_empty(
-        os.getenv("RECOMMENDER_TRAINING_SOURCE"),
-        os.getenv("TRAINING_DATA_SOURCE"),
-    )
-    if source:
-        return source.casefold()
-    return CSV_SOURCE
+    return ratings_path, movies_path, _bool_env("RECOMMENDER_USE_SAMPLE", False)
 
 
 def main() -> None:
@@ -267,6 +236,13 @@ def _int_env(name: str, default: int) -> int:
 def _float_env(name: str, default: float) -> float:
     value = _first_non_empty(os.getenv(name))
     return float(value) if value else default
+
+
+def _bool_env(name: str, default: bool) -> bool:
+    value = _first_non_empty(os.getenv(name))
+    if not value:
+        return default
+    return value.casefold() in {"1", "true", "yes", "on"}
 
 
 if __name__ == "__main__":
