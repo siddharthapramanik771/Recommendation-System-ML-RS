@@ -1,65 +1,76 @@
 {
   "model_name": "Biased Matrix Factorization",
-  "ratings_path": "C:\\Users\\SIDDHARTA PRAMANIK\\PycharmProjects\\Recommendation-System-ML-RS\\data\\ml-latest-small\\ratings.csv",
-  "movies_path": "C:\\Users\\SIDDHARTA PRAMANIK\\PycharmProjects\\Recommendation-System-ML-RS\\data\\ml-latest-small\\movies.csv",
-  "artifact_path": "C:\\Users\\SIDDHARTA PRAMANIK\\PycharmProjects\\Recommendation-System-ML-RS\\models\\model.joblib",
-  "metrics_path": "C:\\Users\\SIDDHARTA PRAMANIK\\PycharmProjects\\Recommendation-System-ML-RS\\models\\training_metrics.json",
+  "data_source": {
+    "type": "tmdb_aggregate_votes",
+    "base_url": "https://api.themoviedb.org/3",
+    "pages": 1,
+    "language": "en-US",
+    "region": null,
+    "sort_by": "popularity.desc",
+    "vote_count_min": 50,
+    "include_adult": false,
+    "links_path": "/home/runner/work/Recommendation-System-ML-RS/Recommendation-System-ML-RS/data/tmdb/links.csv",
+    "auth": "api_key",
+    "note": "TMDB provides catalog metadata and aggregate public votes, not per-user collaborative filtering interactions.",
+    "ratings_path": "/home/runner/work/Recommendation-System-ML-RS/Recommendation-System-ML-RS/data/tmdb/ratings.csv",
+    "movies_path": "/home/runner/work/Recommendation-System-ML-RS/Recommendation-System-ML-RS/data/tmdb/movies.csv",
+    "ratings_count": 74,
+    "movies_count": 20
+  },
+  "ratings_path": "/home/runner/work/Recommendation-System-ML-RS/Recommendation-System-ML-RS/data/tmdb/ratings.csv",
+  "movies_path": "/home/runner/work/Recommendation-System-ML-RS/Recommendation-System-ML-RS/data/tmdb/movies.csv",
+  "artifact_path": "/home/runner/work/Recommendation-System-ML-RS/Recommendation-System-ML-RS/models/model.joblib",
+  "metrics_path": "/home/runner/work/Recommendation-System-ML-RS/Recommendation-System-ML-RS/models/training_metrics.json",
   "settings": {
     "random_state": 42,
-    "latent_factors": 32,
-    "epochs": 30,
+    "latent_factors": 8,
+    "epochs": 2,
     "learning_rate": 0.015,
     "regularization": 0.08,
     "min_user_ratings": 4,
     "min_movie_ratings": 1,
     "k_values": [
       5,
-      10,
-      20
+      10
     ],
     "recommendation_count": 10
   },
   "catalog": {
-    "ratings": 100836,
-    "users": 610,
-    "rated_movies": 9724,
-    "catalog_movies": 9742,
-    "matrix_density": 0.016968273253211548,
-    "matrix_sparsity": 0.9830317267467884,
-    "mean_rating": 3.501556983616962
+    "ratings": 63,
+    "users": 9,
+    "rated_movies": 20,
+    "catalog_movies": 20,
+    "matrix_density": 0.35,
+    "matrix_sparsity": 0.65,
+    "mean_rating": 3.6301587301587297
   },
   "split": {
-    "train_ratings": 100227,
-    "test_ratings": 609,
+    "train_ratings": 60,
+    "test_ratings": 3,
     "test_strategy": "leave-one-relevant-rating-out per eligible user",
     "relevance_threshold": 4.0
   },
   "ranking": {
-    "evaluated_users": 609,
+    "evaluated_users": 3,
     "precision_at_k": {
-      "5": 0.0009852216748768474,
-      "10": 0.0006568144499178982,
-      "20": 0.0009031198686371099
+      "5": 0.06666666666666667,
+      "10": 0.03333333333333333
     },
     "recall_at_k": {
-      "5": 0.0049261083743842365,
-      "10": 0.006568144499178982,
-      "20": 0.0180623973727422
+      "5": 0.3333333333333333,
+      "10": 0.3333333333333333
     },
     "hit_rate_at_k": {
-      "5": 0.0049261083743842365,
-      "10": 0.006568144499178982,
-      "20": 0.0180623973727422
+      "5": 0.3333333333333333,
+      "10": 0.3333333333333333
     },
     "ndcg_at_k": {
-      "5": 0.0028930369575417324,
-      "10": 0.0034779420266846262,
-      "20": 0.006401358290761858
+      "5": 0.3333333333333333,
+      "10": 0.3333333333333333
     },
     "catalog_coverage_at_k": {
-      "5": 0.0217614452884418,
-      "10": 0.033976596181482244,
-      "20": 0.052555943338123585
+      "5": 0.35,
+      "10": 0.65
     }
   }
 }
