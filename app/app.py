@@ -46,7 +46,7 @@ class ReferenceDataService:
         self.preprocessor = preprocessor or MovieLensPreprocessor(config)
 
     def load(self) -> ReferenceDataset | None:
-        ratings_path, movies_path = self.config.resolve_dataset_paths()
+        ratings_path, movies_path = self.config.default_dataset_paths
         if not ratings_path.exists() or not movies_path.exists():
             return None
         ratings = self.preprocessor.clean_ratings(self.config.load_ratings(ratings_path))

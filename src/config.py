@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from functools import cached_property
 from pathlib import Path
 
 import pandas as pd
@@ -55,10 +56,16 @@ class RuntimeConfig:
         movies_path: Path | str | None = None,
         use_sample: bool = False,
     ) -> tuple[Path, Path]:
-        if ratings_path and movies_path:
+        if ratings_path is not None and movies_path is not None:
             return Path(ratings_path), Path(movies_path)
+        if ratings_path is not None or movies_path is not None:
+            raise ValueError("Provide both ratings_path and movies_path.")
         if use_sample:
             return self.sample_ratings_path, self.sample_movies_path
+        return self.default_dataset_paths
+
+    @cached_property
+    def default_dataset_paths(self) -> tuple[Path, Path]:
         if self.ratings_path.exists() and self.movies_path.exists():
             return self.ratings_path, self.movies_path
         if self.sample_ratings_path.exists() and self.sample_movies_path.exists():
@@ -66,11 +73,11 @@ class RuntimeConfig:
         return self.ratings_path, self.movies_path
 
     def load_ratings(self, path: Path | str | None = None) -> pd.DataFrame:
-        ratings_path = Path(path) if path else self.resolve_dataset_paths()[0]
+        ratings_path = Path(path) if path else self.default_dataset_paths[0]
         return pd.read_csv(ratings_path)
 
     def load_movies(self, path: Path | str | None = None) -> pd.DataFrame:
-        movies_path = Path(path) if path else self.resolve_dataset_paths()[1]
+        movies_path = Path(path) if path else self.default_dataset_paths[1]
         return pd.read_csv(movies_path)
 
     def load_links(self, path: Path | str | None = None) -> pd.DataFrame:

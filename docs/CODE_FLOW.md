@@ -104,6 +104,9 @@ They are not used directly by matrix factorization training.
 
 - Defines `RuntimeConfig`, the central path and schema contract.
 - Knows where data, model artifacts, and metrics are located.
+- Caches the selected default ratings/movies path pair through
+  `default_dataset_paths` so the same path resolution is not repeated during a
+  run.
 - Provides simple CSV loading helpers.
 - Creates `RUNTIME_CONFIG`, the default runtime configuration.
 
@@ -225,7 +228,9 @@ main()
 ```
 
 `resolve_training_inputs()` reads optional data path overrides. If no overrides
-are provided, the trainer uses `RuntimeConfig.resolve_dataset_paths()`.
+are provided, the trainer uses `RuntimeConfig.default_dataset_paths`, which is
+cached per config object. `RuntimeConfig.resolve_dataset_paths()` is kept for
+explicit custom path pairs and `RECOMMENDER_USE_SAMPLE=true`.
 
 `settings_from_env()` creates `TrainingSettings` from defaults plus optional
 environment overrides.

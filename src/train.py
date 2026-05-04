@@ -34,11 +34,20 @@ class RecommenderTrainer:
         use_sample: bool = False,
     ) -> dict:
         self.config.ensure_runtime_dirs()
-        resolved_ratings_path, resolved_movies_path = self.config.resolve_dataset_paths(
-            ratings_path=ratings_path,
-            movies_path=movies_path,
-            use_sample=use_sample,
-        )
+        if ratings_path is None and movies_path is None and not use_sample:
+            (
+                resolved_ratings_path,
+                resolved_movies_path,
+            ) = self.config.default_dataset_paths
+        else:
+            (
+                resolved_ratings_path,
+                resolved_movies_path,
+            ) = self.config.resolve_dataset_paths(
+                ratings_path=ratings_path,
+                movies_path=movies_path,
+                use_sample=use_sample,
+            )
 
         raw_ratings = self.config.load_ratings(resolved_ratings_path)
         raw_movies = self.config.load_movies(resolved_movies_path)
