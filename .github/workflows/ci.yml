@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  train-sample:
+  train-tmdb:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -26,9 +26,13 @@ jobs:
       - name: Compile source
         run: python -m compileall app src streamlit_app.py
 
-      - name: Train on sample data
+      - name: Train on TMDB data
         env:
-          RECOMMENDER_TRAINING_SOURCE: sample
+          RECOMMENDER_TRAINING_SOURCE: tmdb
+          TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
+          TMDB_READ_ACCESS_TOKEN: ${{ secrets.TMDB_READ_ACCESS_TOKEN }}
+          TMDB_BEARER_TOKEN: ${{ secrets.TMDB_BEARER_TOKEN }}
+          TMDB_PAGES: "1"
           RECOMMENDER_EPOCHS: "2"
           RECOMMENDER_LATENT_FACTORS: "8"
           RECOMMENDER_K_VALUES: "5,10"

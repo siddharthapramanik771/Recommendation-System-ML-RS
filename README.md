@@ -66,9 +66,8 @@ TMDB_API_KEY = "your_key_here"
 GitHub repository secrets are only exposed to GitHub Actions workflows; they are
 not automatically available to the running Streamlit app.
 
-The app and trainer fall back to `data/sample/` when the real MovieLens files are
-not present. The sample is only for smoke testing; use the GroupLens MovieLens
-dataset for meaningful portfolio metrics.
+Training uses TMDB by default. The tiny `data/sample/` files are kept only for
+explicit smoke tests with `RECOMMENDER_TRAINING_SOURCE=sample`.
 
 ### TMDB-backed catalog snapshots
 
@@ -94,9 +93,9 @@ Optional TMDB training controls:
 - `TMDB_SORT_BY`: default `popularity.desc`
 - `TMDB_VOTE_COUNT_MIN`: default `50`
 
-When a TMDB credential is present, `python -m src.train` uses TMDB automatically.
-You can also set `RECOMMENDER_TRAINING_SOURCE` to one of `tmdb`, `csv`, or
-`sample` when you want to be explicit.
+`python -m src.train` uses TMDB by default and requires one of the TMDB
+credentials above. You can also set `RECOMMENDER_TRAINING_SOURCE` to `csv` or
+`sample` when you explicitly want the local CSV/sample path.
 
 TMDB does not expose the full user-by-movie rating matrix needed for true
 collaborative filtering. This mode uses aggregate public `vote_average` values as
@@ -108,7 +107,7 @@ pseudo interaction signals so the project can train and demo from a TMDB-only so
 .
 |-- .github/
 |   `-- workflows/
-|       |-- ci.yml                    # Compile and sample-training workflow
+|       |-- ci.yml                    # Compile and TMDB smoke-training workflow
 |       `-- monthly-tmdb-training.yml # Scheduled TMDB retraining workflow
 |-- app/
 |   |-- app.py                        # Streamlit UI and app services
@@ -152,6 +151,7 @@ pip install -r requirements.txt
 Train the recommender:
 
 ```powershell
+$env:TMDB_API_KEY="your_key_here"
 python -m src.train
 ```
 

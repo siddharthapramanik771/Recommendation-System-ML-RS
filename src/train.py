@@ -239,11 +239,7 @@ def training_data_source() -> str:
     )
     if source:
         return source.casefold()
-    if _tmdb_credentials_available():
-        return TMDB_SOURCE
-    if _bool_env("RECOMMENDER_USE_SAMPLE", False):
-        return SAMPLE_SOURCE
-    return CSV_SOURCE
+    return TMDB_SOURCE
 
 
 def main() -> None:
@@ -289,16 +285,6 @@ def _optional_path(*names: str) -> Path | None:
     return Path(value) if value else None
 
 
-def _tmdb_credentials_available() -> bool:
-    return bool(
-        _first_non_empty(
-            os.getenv("TMDB_API_KEY"),
-            os.getenv("TMDB_READ_ACCESS_TOKEN"),
-            os.getenv("TMDB_BEARER_TOKEN"),
-        )
-    )
-
-
 def _int_env(name: str, default: int) -> int:
     value = _first_non_empty(os.getenv(name))
     return int(value) if value else default
@@ -307,13 +293,6 @@ def _int_env(name: str, default: int) -> int:
 def _float_env(name: str, default: float) -> float:
     value = _first_non_empty(os.getenv(name))
     return float(value) if value else default
-
-
-def _bool_env(name: str, default: bool) -> bool:
-    value = _first_non_empty(os.getenv(name))
-    if not value:
-        return default
-    return value.casefold() in {"1", "true", "yes", "on"}
 
 
 if __name__ == "__main__":
