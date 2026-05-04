@@ -50,8 +50,17 @@ class MovieLensPreprocessor:
             df[self.config.rating_column], errors="coerce"
         )
         if self.config.timestamp_column in df.columns:
-            df[self.config.timestamp_column] = pd.to_numeric(
+            numeric_timestamp = pd.to_numeric(
                 df[self.config.timestamp_column], errors="coerce"
+            )
+            parsed_timestamp = pd.to_datetime(
+                df[self.config.timestamp_column], errors="coerce", utc=True
+            )
+            timestamp_seconds = parsed_timestamp.map(
+                lambda value: value.timestamp() if pd.notna(value) else pd.NA
+            )
+            df[self.config.timestamp_column] = numeric_timestamp.fillna(
+                timestamp_seconds.astype("float64")
             ).fillna(0)
         else:
             df[self.config.timestamp_column] = range(len(df))

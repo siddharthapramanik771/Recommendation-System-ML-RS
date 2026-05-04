@@ -46,7 +46,7 @@ class ReferenceDataService:
         self.preprocessor = preprocessor or MovieLensPreprocessor(config)
 
     def load(self) -> ReferenceDataset | None:
-        ratings_path, movies_path = self.config.resolve_dataset_paths()
+        ratings_path, movies_path = self._resolve_dataset_paths()
         if not ratings_path.exists() or not movies_path.exists():
             return None
         ratings = self.preprocessor.clean_ratings(self.config.load_ratings(ratings_path))
@@ -68,6 +68,37 @@ class ReferenceDataService:
             links_path=links_path if links_path.exists() else None,
             tags_path=tags_path if tags_path.exists() else None,
         )
+
+    def _resolve_dataset_paths(self) -> tuple[Path, Path]:
+        artifact_paths = self._artifact_training_paths()
+        if artifact_paths is not None:
+            ratings_path, movies_path = artifact_paths
+            if ratings_path.exists() and movies_path.exists():
+                return ratings_path, movies_path
+        return self.config.resolve_dataset_paths()
+
+    def _artifact_training_paths(self) -> tuple[Path, Path] | None:
+        if not self.config.model_path.exists():
+            return None
+        try:
+            artifact = ModelArtifactRepository(self.config.model_path).load()
+        except (OSError, ValueError, ImportError):
+            return None
+
+        summary = artifact.training_summary or {}
+        data_source = summary.get("data_source", {})
+        path_pairs = [
+            (summary.get("ratings_path"), summary.get("movies_path")),
+        ]
+        if isinstance(data_source, dict):
+            path_pairs.append(
+                (data_source.get("ratings_path"), data_source.get("movies_path"))
+            )
+
+        for ratings_path, movies_path in path_pairs:
+            if ratings_path and movies_path:
+                return Path(str(ratings_path)), Path(str(movies_path))
+        return None
 
     def _load_optional_links(self, links_path: Path) -> pd.DataFrame:
         if not links_path.exists():

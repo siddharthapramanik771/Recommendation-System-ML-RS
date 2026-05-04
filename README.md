@@ -70,13 +70,46 @@ The app and trainer fall back to `data/sample/` when the real MovieLens files ar
 not present. The sample is only for smoke testing; use the GroupLens MovieLens
 dataset for meaningful portfolio metrics.
 
+### TMDB-backed catalog snapshots
+
+If you only have a TMDB credential, the trainer can fetch a movie catalog from
+TMDB Discover, map TMDB genres, and create a MovieLens-style snapshot:
+
+```powershell
+$env:TMDB_API_KEY="your_key_here"
+python -m src.train
+```
+
+Set one of these locally, in Streamlit secrets, or in GitHub repository secrets:
+
+- `TMDB_API_KEY`
+- `TMDB_READ_ACCESS_TOKEN`
+- `TMDB_BEARER_TOKEN`
+
+Optional TMDB training controls:
+
+- `TMDB_PAGES`: number of discover pages to fetch; default `10`
+- `TMDB_LANGUAGE`: default `en-US`
+- `TMDB_REGION`: optional region code
+- `TMDB_SORT_BY`: default `popularity.desc`
+- `TMDB_VOTE_COUNT_MIN`: default `50`
+
+When a TMDB credential is present, `python -m src.train` uses TMDB automatically.
+You can also set `RECOMMENDER_TRAINING_SOURCE` to one of `tmdb`, `csv`, or
+`sample` when you want to be explicit.
+
+TMDB does not expose the full user-by-movie rating matrix needed for true
+collaborative filtering. This mode uses aggregate public `vote_average` values as
+pseudo interaction signals so the project can train and demo from a TMDB-only source.
+
 ## Repository Layout
 
 ```text
 .
 |-- .github/
 |   `-- workflows/
-|       `-- ci.yml                    # Compile and sample-training workflow
+|       |-- ci.yml                    # Compile and sample-training workflow
+|       `-- monthly-tmdb-training.yml # Scheduled TMDB retraining workflow
 |-- app/
 |   |-- app.py                        # Streamlit UI and app services
 |   |-- data_analysis.py              # MovieLens EDA views
@@ -97,6 +130,7 @@ dataset for meaningful portfolio metrics.
 |   |-- predict.py                    # Artifact-backed recommendation service
 |   |-- preprocessing.py              # Cleaning and ranking split
 |   |-- train.py                      # Offline training workflow
+|   |-- tmdb_data_source.py           # TMDB catalog snapshotting
 |   `-- training_settings.py          # Model and split settings
 |-- Dockerfile.streamlit
 |-- docker-compose.yml
@@ -172,17 +206,37 @@ Default settings are stored in `src/training_settings.py`:
 - L2 regularization: `0.08`
 - ranking metrics: `precision@5`, `precision@10`, `precision@20`
 
-Change settings from the CLI:
+Change settings with environment variables:
 
 ```powershell
-python -m src.train --factors 64 --epochs 40 --learning-rate 0.01 --k-values 5,10,20
+$env:RECOMMENDER_LATENT_FACTORS="64"
+$env:RECOMMENDER_EPOCHS="40"
+$env:RECOMMENDER_LEARNING_RATE="0.01"
+$env:RECOMMENDER_K_VALUES="5,10,20"
+python -m src.train
 ```
 
 Use explicit MovieLens paths:
 
 ```powershell
-python -m src.train --ratings-path data/ml-latest-small/ratings.csv --movies-path data/ml-latest-small/movies.csv
+$env:RECOMMENDER_RATINGS_PATH="data/ml-latest-small/ratings.csv"
+$env:RECOMMENDER_MOVIES_PATH="data/ml-latest-small/movies.csv"
+python -m src.train
 ```
+
+Fetch catalog data from TMDB before training:
+
+```powershell
+$env:RECOMMENDER_TRAINING_SOURCE="tmdb"
+python -m src.train
+```
+
+The monthly retraining workflow is defined in
+`.github/workflows/monthly-tmdb-training.yml`. It runs at `03:00 UTC` on the
+first day of each month, uploads the TMDB snapshot and trained model as a
+workflow artifact, and commits refreshed `models/model.joblib` and
+`models/training_metrics.json` plus `data/tmdb/` snapshots back to the
+repository.
 
 ## Evaluation
 

@@ -27,6 +27,9 @@ jobs:
         run: python -m compileall app src streamlit_app.py
 
       - name: Train on sample data
-        run: |
-          python -m src.train --sample --epochs 2 --factors 8 --k-values 5,10
-
+        env:
+          RECOMMENDER_TRAINING_SOURCE: sample
+          RECOMMENDER_EPOCHS: "2"
+          RECOMMENDER_LATENT_FACTORS: "8"
+          RECOMMENDER_K_VALUES: "5,10"
+        run: python -m src.train

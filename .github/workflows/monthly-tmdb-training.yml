@@ -1,0 +1,66 @@
+name: Monthly TMDB Training
+
+on:
+  schedule:
+    - cron: "0 3 1 * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  train-from-tmdb:
+    runs-on: ubuntu-latest
+    env:
+      RECOMMENDER_TRAINING_SOURCE: tmdb
+      TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
+      TMDB_READ_ACCESS_TOKEN: ${{ secrets.TMDB_READ_ACCESS_TOKEN }}
+      TMDB_BEARER_TOKEN: ${{ secrets.TMDB_BEARER_TOKEN }}
+      TMDB_PAGES: ${{ vars.TMDB_PAGES }}
+      TMDB_LANGUAGE: ${{ vars.TMDB_LANGUAGE }}
+      TMDB_REGION: ${{ vars.TMDB_REGION }}
+      TMDB_SORT_BY: ${{ vars.TMDB_SORT_BY }}
+      TMDB_VOTE_COUNT_MIN: ${{ vars.TMDB_VOTE_COUNT_MIN }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-train.txt
+
+      - name: Compile source
+        run: python -m compileall app src streamlit_app.py
+
+      - name: Train from TMDB snapshot
+        run: python -m src.train
+
+      - name: Upload trained artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: recommender-model-${{ github.run_id }}
+          path: |
+            models/model.joblib
+            models/training_metrics.json
+            data/tmdb/ratings.csv
+            data/tmdb/movies.csv
+            data/tmdb/links.csv
+          retention-days: 90
+
+      - name: Commit refreshed model
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add models/model.joblib models/training_metrics.json
+          git add -f data/tmdb/ratings.csv data/tmdb/movies.csv data/tmdb/links.csv
+          git diff --cached --quiet || git commit -m "Update monthly recommender model"
+          git push origin HEAD:${{ github.ref_name }}

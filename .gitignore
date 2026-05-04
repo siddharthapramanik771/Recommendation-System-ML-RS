@@ -182,6 +182,7 @@ cython_debug/
 
 # Local MovieLens downloads
 # data/ml-*/
+data/tmdb/
 *.zip
 
 # Local verification scratch space
