@@ -1,8 +1,5 @@
 {
   "model_name": "Biased Matrix Factorization",
-  "data_source": {
-    "type": "csv"
-  },
   "ratings_path": "/home/runner/work/Recommendation-System-ML-RS/Recommendation-System-ML-RS/data/ml-latest-small/ratings.csv",
   "movies_path": "/home/runner/work/Recommendation-System-ML-RS/Recommendation-System-ML-RS/data/ml-latest-small/movies.csv",
   "artifact_path": "/home/runner/work/Recommendation-System-ML-RS/Recommendation-System-ML-RS/models/model.joblib",
@@ -41,28 +38,28 @@
     "evaluated_users": 609,
     "precision_at_k": {
       "5": 0.0009852216748768474,
-      "10": 0.0006568144499178982,
-      "20": 0.0009031198686371099
+      "10": 0.0008210180623973727,
+      "20": 0.0008210180623973726
     },
     "recall_at_k": {
       "5": 0.0049261083743842365,
-      "10": 0.006568144499178982,
-      "20": 0.0180623973727422
+      "10": 0.008210180623973728,
+      "20": 0.016420361247947456
     },
     "hit_rate_at_k": {
       "5": 0.0049261083743842365,
-      "10": 0.006568144499178982,
-      "20": 0.0180623973727422
+      "10": 0.008210180623973728,
+      "20": 0.016420361247947456
     },
     "ndcg_at_k": {
       "5": 0.0028930369575417324,
-      "10": 0.0034779420266846262,
-      "20": 0.006401358290761858
+      "10": 0.003972244154211689,
+      "20": 0.006032953022732402
     },
     "catalog_coverage_at_k": {
-      "5": 0.0217614452884418,
-      "10": 0.033976596181482244,
-      "20": 0.052555943338123585
+      "5": 0.02217203859577089,
+      "10": 0.033155409566824064,
+      "20": 0.05265859166495586
     }
   }
 }
