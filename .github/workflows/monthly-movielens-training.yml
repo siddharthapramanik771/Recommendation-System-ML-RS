@@ -1,4 +1,4 @@
-name: Monthly TMDB Training
+name: Monthly MovieLens Training
 
 on:
   schedule:
@@ -9,18 +9,10 @@ permissions:
   contents: write
 
 jobs:
-  train-from-tmdb:
+  train-movielens:
     runs-on: ubuntu-latest
     env:
-      RECOMMENDER_TRAINING_SOURCE: tmdb
-      TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
-      TMDB_READ_ACCESS_TOKEN: ${{ secrets.TMDB_READ_ACCESS_TOKEN }}
-      TMDB_BEARER_TOKEN: ${{ secrets.TMDB_BEARER_TOKEN }}
-      TMDB_PAGES: ${{ vars.TMDB_PAGES }}
-      TMDB_LANGUAGE: ${{ vars.TMDB_LANGUAGE }}
-      TMDB_REGION: ${{ vars.TMDB_REGION }}
-      TMDB_SORT_BY: ${{ vars.TMDB_SORT_BY }}
-      TMDB_VOTE_COUNT_MIN: ${{ vars.TMDB_VOTE_COUNT_MIN }}
+      RECOMMENDER_TRAINING_SOURCE: csv
 
     steps:
       - name: Check out repository
@@ -41,7 +33,7 @@ jobs:
       - name: Compile source
         run: python -m compileall app src streamlit_app.py
 
-      - name: Train from TMDB snapshot
+      - name: Train from MovieLens data
         run: python -m src.train
 
       - name: Upload trained artifacts
@@ -51,9 +43,6 @@ jobs:
           path: |
             models/model.joblib
             models/training_metrics.json
-            data/tmdb/ratings.csv
-            data/tmdb/movies.csv
-            data/tmdb/links.csv
           retention-days: 90
 
       - name: Commit refreshed model
@@ -61,6 +50,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add models/model.joblib models/training_metrics.json
-          git add -f data/tmdb/ratings.csv data/tmdb/movies.csv data/tmdb/links.csv
-          git diff --cached --quiet || git commit -m "Update monthly recommender model"
+          git diff --cached --quiet || git commit -m "Update monthly MovieLens recommender model [skip ci]"
           git push origin HEAD:${{ github.ref_name }}

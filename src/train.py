@@ -11,16 +11,10 @@ from src.evaluation import RankingEvaluation, evaluate_ranking
 from src.matrix_factorization import MatrixFactorizationRecommender
 from src.model_bundle import ModelArtifact, ModelArtifactRepository
 from src.preprocessing import MovieLensPreprocessor
-from src.tmdb_data_source import (
-    TmdbDatasetClient,
-    TmdbDatasetSettings,
-    TmdbDatasetSnapshot,
-)
 from src.training_settings import TrainingSettings
 
 
 CSV_SOURCE = "csv"
-TMDB_SOURCE = "tmdb"
 SAMPLE_SOURCE = "sample"
 
 
@@ -198,26 +192,14 @@ def resolve_training_inputs() -> tuple[
     Path | None,
     Path | None,
     bool,
-    TmdbDatasetSnapshot | None,
 ]:
     source = training_data_source()
-    tmdb_snapshot: TmdbDatasetSnapshot | None = None
-
-    if source == TMDB_SOURCE:
-        tmdb_settings = TmdbDatasetSettings.from_env()
-        tmdb_snapshot = TmdbDatasetClient(tmdb_settings).fetch_and_cache()
-        return (
-            tmdb_snapshot.ratings_path,
-            tmdb_snapshot.movies_path,
-            False,
-            tmdb_snapshot,
-        )
 
     if source == SAMPLE_SOURCE:
-        return None, None, True, None
+        return None, None, True
 
     if source != CSV_SOURCE:
-        valid_sources = ", ".join([CSV_SOURCE, TMDB_SOURCE, SAMPLE_SOURCE])
+        valid_sources = ", ".join([CSV_SOURCE, SAMPLE_SOURCE])
         raise ValueError(
             f"Unsupported RECOMMENDER_TRAINING_SOURCE={source!r}. "
             f"Use one of: {valid_sources}."
@@ -229,7 +211,7 @@ def resolve_training_inputs() -> tuple[
         raise ValueError(
             "Provide both RECOMMENDER_RATINGS_PATH and RECOMMENDER_MOVIES_PATH."
         )
-    return ratings_path, movies_path, False, None
+    return ratings_path, movies_path, False
 
 
 def training_data_source() -> str:
@@ -239,18 +221,17 @@ def training_data_source() -> str:
     )
     if source:
         return source.casefold()
-    return TMDB_SOURCE
+    return CSV_SOURCE
 
 
 def main() -> None:
-    ratings_path, movies_path, use_sample, tmdb_snapshot = resolve_training_inputs()
+    ratings_path, movies_path, use_sample = resolve_training_inputs()
 
     trainer = RecommenderTrainer(settings=settings_from_env())
     metrics = trainer.run(
         ratings_path=ratings_path,
         movies_path=movies_path,
         use_sample=use_sample,
-        data_source_summary=tmdb_snapshot.to_dict() if tmdb_snapshot else None,
     )
     ranking = metrics["ranking"]
     k = str(trainer.settings.recommendation_count)
@@ -264,13 +245,6 @@ def main() -> None:
         f"Precision@{k}: {precision:.4f}. "
         f"Artifact: {metrics['artifact_path']}"
     )
-    if tmdb_snapshot:
-        print(
-            "TMDB snapshot saved. "
-            f"Ratings: {tmdb_snapshot.ratings_count}. "
-            f"Movies: {tmdb_snapshot.movies_count}. "
-            f"Directory: {tmdb_snapshot.ratings_path.parent}"
-        )
 
 
 def _first_non_empty(*values: str | None) -> str:

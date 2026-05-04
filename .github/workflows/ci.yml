@@ -6,7 +6,6 @@ on:
     paths-ignore:
       - "models/model.joblib"
       - "models/training_metrics.json"
-      - "data/tmdb/**"
   pull_request:
   workflow_dispatch:
 
@@ -14,13 +13,11 @@ permissions:
   contents: write
 
 jobs:
-  train-tmdb:
+  train-movielens:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.ref_name }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -35,16 +32,9 @@ jobs:
       - name: Compile source
         run: python -m compileall app src streamlit_app.py
 
-      - name: Train on TMDB data
+      - name: Train on MovieLens data
         env:
-          RECOMMENDER_TRAINING_SOURCE: tmdb
-          TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
-          TMDB_READ_ACCESS_TOKEN: ${{ secrets.TMDB_READ_ACCESS_TOKEN }}
-          TMDB_BEARER_TOKEN: ${{ secrets.TMDB_BEARER_TOKEN }}
-          TMDB_PAGES: "1"
-          RECOMMENDER_EPOCHS: "2"
-          RECOMMENDER_LATENT_FACTORS: "8"
-          RECOMMENDER_K_VALUES: "5,10"
+          RECOMMENDER_TRAINING_SOURCE: csv
         run: python -m src.train
 
       - name: Save trained model artifacts
@@ -54,9 +44,6 @@ jobs:
           path: |
             models/model.joblib
             models/training_metrics.json
-            data/tmdb/ratings.csv
-            data/tmdb/movies.csv
-            data/tmdb/links.csv
           retention-days: 14
 
       - name: Commit trained model
@@ -65,6 +52,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add models/model.joblib models/training_metrics.json
-          git add -f data/tmdb/ratings.csv data/tmdb/movies.csv data/tmdb/links.csv
-          git diff --cached --quiet || git commit -m "Update TMDB recommender model [skip ci]"
+          git diff --cached --quiet || git commit -m "Update MovieLens recommender model [skip ci]"
           git push origin HEAD:${{ github.ref_name }}
